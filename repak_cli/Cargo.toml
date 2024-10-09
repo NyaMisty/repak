@@ -18,8 +18,9 @@ name = "repak"
 path = "src/main.rs"
 
 [features]
-default = ["oodle"]
+default = ["oodle", "infnikki"]
 oodle = ["repak/oodle_implicit_dynamic"]
+infnikki = ["repak/infnikki"]
 
 [dependencies]
 repak = { path = "../repak" }

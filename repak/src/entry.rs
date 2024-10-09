@@ -453,10 +453,15 @@ impl Entry {
         #[allow(unused)] oodle: &super::Oodle,
         buf: &mut W,
     ) -> Result<(), super::Error> {
+        // println!("{:?} {:?}", self, self.offset);
         reader.seek(io::SeekFrom::Start(self.offset))?;
         Entry::read(reader, version)?;
         #[cfg(any(feature = "compression", feature = "oodle"))]
         let data_offset = reader.stream_position()?;
+        // println!("reader offset after read: {:?}, real data length: {:?}", data_offset, match self.is_encrypted() {
+        //     true => align(self.compressed),
+        //     false => self.compressed,
+        // } as usize);
         #[allow(unused_mut)]
         let mut data = reader.read_len(match self.is_encrypted() {
             true => align(self.compressed),
@@ -481,10 +486,13 @@ impl Entry {
         #[cfg(any(feature = "compression", feature = "oodle"))]
         let ranges = {
             let offset = |index: u64| -> usize {
-                (match version.version_major() >= VersionMajor::RelativeChunkOffsets {
-                    true => index - (data_offset - self.offset),
+                // println!("Converting index {:?} (data_offset {:?} data_record_offset {:?})", index, data_offset, self.offset);
+                let ret = (match version.version_major() >= VersionMajor::RelativeChunkOffsets {
+                    // true => index - (data_offset - self.offset),
+                    true => index + 20 - (data_offset - self.offset), // because hash2 should not be counted into relative offset
                     false => index - data_offset,
-                }) as usize
+                }) as usize;
+                ret
             };
 
             match &self.blocks {
