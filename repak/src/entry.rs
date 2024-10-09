@@ -245,7 +245,7 @@ impl Entry {
         let timestamp = (ver == VersionMajor::Initial).then_try(|| reader.read_u64::<LE>())?;
         let hash = Some(reader.read_guid()?);
         #[cfg(feature = "infnikki")]
-        let hash2 = Some(reader.read_guid()?);
+        let _hash2 = Some(reader.read_guid()?);
         let blocks = (ver >= VersionMajor::CompressionEncryption && compression.is_some())
             .then_try(|| reader.read_array(Block::read))?;
         let flags = (ver >= VersionMajor::CompressionEncryption)
