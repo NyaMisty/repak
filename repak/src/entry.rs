@@ -56,6 +56,7 @@ pub(crate) struct Entry {
     pub compression_slot: Option<u32>,
     pub timestamp: Option<u64>,
     pub hash: Option<[u8; 20]>,
+    pub hash_original: Option<[u8; 20]>,
     pub blocks: Option<Vec<Block>>,
     pub flags: u8,
     pub compression_block_size: u32,
@@ -86,6 +87,7 @@ impl Entry {
             false => 0,
         };
         size += 20; // hash
+        size += 20; // hash_original
         size += match compression {
             Some(_) => 4 + (8 + 8) * block_count as u64, // blocks
             None => 0,
@@ -201,6 +203,13 @@ impl Entry {
             None => (None, None),
         };
 
+        let mut hasher_post = Sha1::new();
+        if let Some(compressed) = compressed.as_ref() {
+            hasher_post.update(&compressed);
+        } else {
+            hasher_post.update(data.as_ref());
+        }
+
         let entry = super::entry::Entry {
             offset,
             compressed: compressed
@@ -210,7 +219,8 @@ impl Entry {
             uncompressed: len,
             compression_slot,
             timestamp: None,
-            hash: Some(hasher.finalize().into()),
+            hash: Some(hasher_post.finalize().into()),
+            hash_original: Some(hasher.finalize().into()),
             blocks,
             flags: 0,
             compression_block_size: compressed.as_ref().map(|_| len as u32).unwrap_or_default(),
@@ -245,7 +255,7 @@ impl Entry {
         let timestamp = (ver == VersionMajor::Initial).then_try(|| reader.read_u64::<LE>())?;
         let hash = Some(reader.read_guid()?);
         #[cfg(feature = "infnikki")]
-        let _hash2 = Some(reader.read_guid()?);
+        let hash_original = Some(reader.read_guid()?);
         let blocks = (ver >= VersionMajor::CompressionEncryption && compression.is_some())
             .then_try(|| reader.read_array(Block::read))?;
         let flags = (ver >= VersionMajor::CompressionEncryption)
@@ -261,6 +271,7 @@ impl Entry {
             compression_slot: compression,
             timestamp,
             hash,
+            hash_original,
             blocks,
             flags,
             compression_block_size,
@@ -290,6 +301,11 @@ impl Entry {
         }
         if let Some(hash) = self.hash {
             writer.write_all(&hash)?;
+        } else {
+            panic!("hash missing");
+        }
+        if let Some(hash_original) = self.hash_original {
+            writer.write_all(&hash_original)?;
         } else {
             panic!("hash missing");
         }
@@ -378,6 +394,7 @@ impl Entry {
             timestamp: None,
             compression_slot: compression,
             hash: None,
+            hash_original: None,
             blocks,
             flags: encrypted as u8,
             compression_block_size,
