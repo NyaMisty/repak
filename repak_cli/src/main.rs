@@ -408,6 +408,7 @@ fn unpack(aes_key: Option<aes::Aes256>, action: ActionUnpack) -> Result<(), repa
             None => Output::Stdout,
         };
 
+        rayon::ThreadPoolBuilder::new().num_threads(1).build_global().unwrap();
         entries.par_iter().try_for_each_init(
             || (progress.clone(), File::open(input)),
             |(progress, file), entry| -> Result<(), repak::Error> {
