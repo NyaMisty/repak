@@ -132,18 +132,31 @@ pub enum Compression {
     Zstd,
 }
 
+#[derive(Debug, Clone)]
+pub struct AesKey {
+    pub cipher: aes::Aes256,
+    pub key_bytes: Vec<u8>,
+}
+
+
+impl AesKey {
+    pub fn get_key(&self) -> Vec<u8> {
+        return self.key_bytes.clone();
+    }
+}
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Default)]
 pub(crate) enum Key {
     #[cfg(feature = "encryption")]
-    Some(aes::Aes256),
+    Some(AesKey),
     #[default]
     None,
 }
 
 #[cfg(feature = "encryption")]
-impl From<aes::Aes256> for Key {
-    fn from(value: aes::Aes256) -> Self {
+impl From<AesKey> for Key {
+    fn from(value: AesKey) -> Self {
         Self::Some(value)
     }
 }

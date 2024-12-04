@@ -60,8 +60,7 @@ fn fetch_oodle() -> Result<std::path::PathBuf> {
 
     if !oodle_path.exists() {
         let mut compressed = vec![];
-        // ureq::get("https://origin.warframe.com/origin/50F7040A/index.txt.lzma")
-        ureq::get("http://127.1:11223/index.txt.lzma")
+        ureq::get("https://origin.warframe.com/origin/50F7040A/index.txt.lzma")
             .call()?
             .into_reader()
             .read_to_end(&mut compressed)?;

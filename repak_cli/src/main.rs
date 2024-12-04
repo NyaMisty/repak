@@ -155,13 +155,22 @@ struct Args {
 }
 
 #[derive(Debug, Clone)]
-struct AesKey(aes::Aes256);
+// struct AesKey(aes::Aes256);
+pub struct AesKey(repak::AesKey);
 impl std::str::FromStr for AesKey {
     type Err = repak::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use aes::cipher::KeyInit;
         use base64::{engine::general_purpose, Engine as _};
-        let try_parse = |bytes: Vec<_>| aes::Aes256::new_from_slice(&bytes).ok().map(AesKey);
+        // let try_parse = |bytes: Vec<_>| aes::Aes256::new_from_slice(&bytes).ok().map(AesKey);
+        let try_parse = |bytes: Vec<u8>| {
+            aes::Aes256::new_from_slice(&bytes)
+                .ok()
+                .map(|cipher| repak::AesKey {
+                    cipher,
+                    key_bytes: bytes,
+                }).map(AesKey)
+        };
         hex::decode(s.strip_prefix("0x").unwrap_or(s))
             .ok()
             .and_then(try_parse)
@@ -189,7 +198,7 @@ fn main() -> Result<(), repak::Error> {
     }
 }
 
-fn info(aes_key: Option<aes::Aes256>, action: ActionInfo) -> Result<(), repak::Error> {
+fn info(aes_key: Option<repak::AesKey>, action: ActionInfo) -> Result<(), repak::Error> {
     let mut builder = repak::PakBuilder::new();
     if let Some(aes_key) = aes_key {
         builder = builder.key(aes_key);
@@ -205,7 +214,7 @@ fn info(aes_key: Option<aes::Aes256>, action: ActionInfo) -> Result<(), repak::E
     Ok(())
 }
 
-fn list(aes_key: Option<aes::Aes256>, action: ActionList) -> Result<(), repak::Error> {
+fn list(aes_key: Option<repak::AesKey>, action: ActionList) -> Result<(), repak::Error> {
     let mut builder = repak::PakBuilder::new();
     if let Some(aes_key) = aes_key {
         builder = builder.key(aes_key);
@@ -238,7 +247,7 @@ fn list(aes_key: Option<aes::Aes256>, action: ActionList) -> Result<(), repak::E
     Ok(())
 }
 
-fn hash_list(aes_key: Option<aes::Aes256>, action: ActionHashList) -> Result<(), repak::Error> {
+fn hash_list(aes_key: Option<repak::AesKey>, action: ActionHashList) -> Result<(), repak::Error> {
     let mut builder = repak::PakBuilder::new();
     if let Some(aes_key) = aes_key {
         builder = builder.key(aes_key);
@@ -310,7 +319,7 @@ impl Output {
     }
 }
 
-fn unpack(aes_key: Option<aes::Aes256>, action: ActionUnpack) -> Result<(), repak::Error> {
+fn unpack(aes_key: Option<repak::AesKey>, action: ActionUnpack) -> Result<(), repak::Error> {
     for input in &action.input {
         let mut builder = repak::PakBuilder::new();
         if let Some(aes_key) = aes_key.clone() {
@@ -407,6 +416,8 @@ fn unpack(aes_key: Option<aes::Aes256>, action: ActionUnpack) -> Result<(), repa
             Some(progress) => Output::Progress(progress.clone()),
             None => Output::Stdout,
         };
+
+        // limit par_iter concurrency to 1
 
         entries.par_iter().try_for_each_init(
             || (progress.clone(), File::open(input)),
@@ -519,7 +530,7 @@ fn pack(args: ActionPack) -> Result<(), repak::Error> {
     Ok(())
 }
 
-fn get(aes_key: Option<aes::Aes256>, args: ActionGet) -> Result<(), repak::Error> {
+fn get(aes_key: Option<repak::AesKey>, args: ActionGet) -> Result<(), repak::Error> {
     let mut reader = BufReader::new(File::open(&args.input)?);
     let mut builder = repak::PakBuilder::new();
     if let Some(aes_key) = aes_key {

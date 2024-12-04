@@ -32,7 +32,7 @@ impl PakBuilder {
         }
     }
     #[cfg(feature = "encryption")]
-    pub fn key(mut self, key: aes::Aes256) -> Self {
+    pub fn key(mut self, key: AesKey) -> Self {
         self.key = super::Key::Some(key);
         self
     }
@@ -150,11 +150,19 @@ impl Index {
 }
 
 #[cfg(feature = "encryption")]
-fn decrypt(key: &super::Key, bytes: &mut [u8]) -> Result<(), super::Error> {
+pub fn decrypt(key: &super::Key, bytes: &mut [u8]) -> Result<(), super::Error> {
     if let super::Key::Some(key) = key {
         use aes::cipher::BlockDecrypt;
         for chunk in bytes.chunks_mut(16) {
-            key.decrypt_block(aes::Block::from_mut_slice(chunk))
+            key.cipher.decrypt_block(aes::Block::from_mut_slice(chunk))
+        }
+        // check if has env INFNIKKI_BETA
+        if let Ok("INFNIKKI_BETA") = std::env::var("INFNIKKI_BETA").as_deref() {
+        } else {
+            for i in 0..(bytes.len() >> 4) {
+                bytes[i * 16] ^= key.key_bytes[0];
+                bytes[i * 16 + 15] ^= key.key_bytes[key.key_bytes.len() - 1];
+            }
         }
         Ok(())
     } else {
@@ -681,11 +689,21 @@ fn pad_zeros_to_alignment(v: &mut Vec<u8>, alignment: usize) {
     assert!(v.len() % alignment == 0);
 }
 
+use crate::AesKey;
 #[cfg(feature = "encryption")]
-fn encrypt(key: aes::Aes256, bytes: &mut [u8]) {
+pub fn encrypt(key: AesKey, bytes: &mut [u8]) {
     use aes::cipher::BlockEncrypt;
+
+    if let Ok("INFNIKKI_BETA") = std::env::var("INFNIKKI_BETA").as_deref() {
+    } else {
+        for i in 0..(bytes.len() >> 4) {
+            bytes[i * 16] ^= key.key_bytes[0];
+            bytes[i * 16 + 15] ^= key.key_bytes[key.key_bytes.len() - 1];
+        }
+    }
+
     for chunk in bytes.chunks_mut(16) {
-        key.encrypt_block(aes::Block::from_mut_slice(chunk))
+        key.cipher.encrypt_block(aes::Block::from_mut_slice(chunk))
     }
 }
 

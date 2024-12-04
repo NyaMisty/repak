@@ -489,13 +489,7 @@ impl Entry {
             return Err(super::Error::Encryption);
             #[cfg(feature = "encryption")]
             {
-                let super::Key::Some(key) = key else {
-                    return Err(super::Error::Encrypted);
-                };
-                use aes::cipher::BlockDecrypt;
-                for block in data.chunks_mut(16) {
-                    key.decrypt_block(aes::Block::from_mut_slice(block))
-                }
+                crate::decrypt(key, &mut data)?;
                 data.truncate(self.compressed as usize);
             }
         }
@@ -505,8 +499,7 @@ impl Entry {
             let offset = |index: u64| -> usize {
                 // println!("Converting index {:?} (data_offset {:?} data_record_offset {:?})", index, data_offset, self.offset);
                 let ret = (match version.version_major() >= VersionMajor::RelativeChunkOffsets {
-                    // true => index - (data_offset - self.offset),
-                    true => index + 20 - (data_offset - self.offset), // because hash2 should not be counted into relative offset
+                    true => index - (data_offset - self.offset),
                     false => index - data_offset,
                 }) as usize;
                 ret
